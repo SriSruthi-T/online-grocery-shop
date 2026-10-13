@@ -1,0 +1,22 @@
+services:
+  grocery-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: grocery-app:latest
+    container_name: grocery-app
+    ports:
+      - "8088:8080"
+    environment:
+      - DB_HOST=grocery-db
+      - DB_PORT=3306
+      - DB_NAME=grocery_shop
+      - DB_USER=grocery_user
+      - DB_PASS=grocery_pass
+    networks:
+      - grocery-network
+    restart: unless-stopped
+
+networks:
+  grocery-network:
+    driver: bridge
