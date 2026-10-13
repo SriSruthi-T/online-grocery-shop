@@ -16,7 +16,7 @@ pipeline {
             steps {
                 echo '📥 Checking out source code from Git...'
                 git branch: 'main',
-                    url: 'https://github.com/YOUR-USERNAME/online-grocery-shop.git'
+                    url: 'https://github.com/SriSruthi-T/online-grocery-shop.git'
             }
         }
 

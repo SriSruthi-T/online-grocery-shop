@@ -1,0 +1,123 @@
+---
+- name: Deploy Online Grocery Shopping Management System
+  hosts: grocery_servers
+  become: yes
+  vars:
+    app_name: online-grocery-shop
+    app_version: "1.0"
+    java_version: "11"
+    db_name: "grocery_shop"
+    db_user: "grocery_user"
+    db_password: "grocery_pass"
+    deploy_dir: "/opt/grocery-shop"
+
+  tasks:
+    - name: Install Java JDK 11
+      apt:
+        name: openjdk-{{ java_version }}-jdk
+        state: present
+        update_cache: yes
+
+    - name: Verify Java installation
+      command: java -version
+      register: java_result
+      changed_when: false
+
+    - name: Display Java version
+      debug:
+        msg: "{{ java_result.stderr }}"
+
+    - name: Install Maven
+      apt:
+        name: maven
+        state: present
+
+    - name: Install MySQL Server
+      apt:
+        name:
+          - mysql-server
+          - mysql-client
+          - python3-mysqldb
+        state: present
+
+    - name: Start MySQL service
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+
+    - name: Create grocery database
+      mysql_db:
+        name: "{{ db_name }}"
+        state: present
+
+    - name: Create database user
+      mysql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        priv: "{{ db_name }}.*:ALL"
+        state: present
+
+    - name: Install Docker prerequisites
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: yes
+
+    - name: Start Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Create deployment directory
+      file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy application files
+      copy:
+        src: ../
+        dest: "{{ deploy_dir }}/"
+
+    - name: Build application with Maven
+      command: mvn clean package -DskipTests
+      args:
+        chdir: "{{ deploy_dir }}"
+
+    - name: Build Docker image
+      command: docker build -t {{ app_name }}:{{ app_version }} .
+      args:
+        chdir: "{{ deploy_dir }}"
+
+    - name: Run Docker container
+      docker_container:
+        name: "{{ app_name }}"
+        image: "{{ app_name }}:{{ app_version }}"
+        ports:
+          - "8080:8080"
+        state: started
+        restart_policy: unless-stopped
